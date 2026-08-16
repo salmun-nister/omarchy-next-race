@@ -1,0 +1,23 @@
+{
+  "schemaVersion": 1,
+  "id": "salmun-nister.next-race",
+  "name": "Next Race",
+  "version": "1.0.0",
+  "author": "Salmun-Nister",
+  "license": "MIT",
+  "description": "The next race at a glance: circuit, location, weekend schedule and a track map.",
+  "homepage": "https://github.com/salmun-nister/omarchy-next-race",
+  "kinds": [
+    "bar-widget"
+  ],
+  "entryPoints": {
+    "barWidget": "BarWidget.qml"
+  },
+  "barWidget": {
+    "displayName": "Next Race",
+    "description": "Next race pill with schedule and track map popup",
+    "category": "Info",
+    "allowMultiple": false,
+    "defaultSection": "center"
+  }
+}
