@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.1 - 2026-08-22
+
+- Refreshed preview image.
+
 ## 1.1.0 - 2026-08-22
 
 - Theme-dynamic text colors throughout the panel: emphasis now renders at full
