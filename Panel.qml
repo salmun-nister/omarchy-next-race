@@ -23,7 +23,7 @@ Panel {
   property var anchorItem: null
 
   // The bar tracks the widget mounted in its slot — BarWidget.qml — not this
-  // nested panel (same contract as the weather plugin).
+  // nested panel.
   property var hostWidget: null
   readonly property var barIdentity: hostWidget || root
 
@@ -88,11 +88,14 @@ Panel {
   readonly property var nextRace: Model.nextRace(root.races, root.now)
   readonly property var nextSession: Model.nextSession(root.config, root.nextRace, root.now)
   readonly property real targetEpoch: root.nextSession ? Model.parseUtcDate(root.nextSession.date) : NaN
-  readonly property bool nextSoon: isFinite(root.targetEpoch) && (root.targetEpoch - root.now.getTime()) < 24 * 3600 * 1000
+  // The targeted session has started and sits inside its estimated running
+  // window, so pill and hero say so instead of counting the next event.
+  readonly property bool sessionLive: Model.sessionLive(root.config, root.nextSession, root.now.getTime())
 
   readonly property color contentForeground: bar ? bar.foreground : Color.foreground
   readonly property string contentFontFamily: bar ? bar.fontFamily : Style.font.family
-  readonly property color accentColor: Style.selectedStateColor(root.contentForeground, Color.accent)
+  // Theme-authored secondary tone; emphasis comes from weight, not shading.
+  readonly property color mutedText: Color.muted
 
   readonly property var trackPoints: root.nextRace ? Circuits.circuitPoints(root.nextRace.circuitId) : undefined
   readonly property var trackPath: Model.normalizeTrack(root.trackPoints)
@@ -156,9 +159,9 @@ Panel {
 
   // The pill. Hidden until there is something to say; a countdown to the
   // next session once there is.
-  readonly property string label: root.nextRace
-    ? "\uf11e " + root.config.shortName + " " + Model.countdownText(root.targetEpoch, root.now.getTime())
-    : ""
+  readonly property string label: !root.nextRace ? "" : root.sessionLive
+    ? "\uf11e " + root.config.shortName + " · live now"
+    : "\uf11e " + root.config.shortName + " " + Model.countdownText(root.targetEpoch, root.now.getTime())
 
   // ---- Open/close, mirroring the clock panel's contract.
   function open() {
@@ -375,7 +378,7 @@ Panel {
                 text: root.nextRace
                   ? root.nextRace.season + " SEASON · ROUND " + root.nextRace.round
                   : ""
-                color: Qt.darker(root.contentForeground, 1.5)
+                color: root.mutedText
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.caption
                 font.letterSpacing: 1
@@ -397,7 +400,7 @@ Panel {
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
                 text: root.nextRace ? root.nextRace.locality + ", " + root.nextRace.country : ""
-                color: Qt.darker(root.contentForeground, 1.4)
+                color: root.mutedText
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.bodySmall
               }
@@ -408,9 +411,9 @@ Panel {
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
                 text: root.nextSession && root.nextRace
-                  ? root.nextSession.label + " · " + Model.countdownLong(root.targetEpoch, root.now.getTime())
+                  ? root.nextSession.label + " · " + (root.sessionLive ? "live" : Model.countdownLong(root.targetEpoch, root.now.getTime()))
                   : ""
-                color: root.nextSoon ? root.accentColor : Qt.darker(root.contentForeground, 1.35)
+                color: root.contentForeground
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.bodySmall
                 font.bold: true
@@ -464,7 +467,7 @@ Panel {
 
                   // Start/finish: the ring's first point, marked as a filled
                   // dot so the diagram reads which way the lap goes.
-                  ctx.fillStyle = String(root.accentColor)
+                  ctx.fillStyle = String(Color.accent)
                   ctx.beginPath()
                   ctx.arc(px(pts[0]), py(pts[0]), 3.5, 0, Math.PI * 2)
                   ctx.fill()
@@ -483,7 +486,7 @@ Panel {
                     var ny = tx
                     var cx = px(pts[0]) + tx * 7
                     var cy = py(pts[0]) + ty * 7
-                    ctx.strokeStyle = String(root.accentColor)
+                    ctx.strokeStyle = String(Color.accent)
                     ctx.lineWidth = 2
                     ctx.lineCap = "round"
                     ctx.beginPath()
@@ -513,7 +516,7 @@ Panel {
               horizontalAlignment: Text.AlignHCenter
               text: (root.nextRace ? root.nextRace.circuitName : "") +
                     (root.trackWeatherIcon !== "" ? "  " + root.trackWeatherIcon : "")
-              color: Qt.darker(root.contentForeground, 1.8)
+              color: root.contentForeground
               font.family: root.contentFontFamily
               font.pixelSize: Style.font.heading
               font.letterSpacing: 1
@@ -528,7 +531,7 @@ Panel {
                 id: localTimeText
                 anchors.verticalCenter: parent.verticalCenter
                 text: "local: " + root.localTimeString
-                color: !root.useTrackTime ? root.accentColor : Qt.darker(root.contentForeground, 1.4)
+                color: !root.useTrackTime ? root.contentForeground : root.mutedText
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.caption
                 font.bold: !root.useTrackTime
@@ -548,14 +551,14 @@ Panel {
                 Text {
                   text: "<"
                   opacity: !root.useTrackTime ? 1 : 0
-                  color: root.accentColor
+                  color: Color.accent
                   font.family: root.contentFontFamily
                   font.pixelSize: Style.font.caption
                 }
 
                 Text {
                   text: "\uf017"
-                  color: root.accentColor
+                  color: Color.accent
                   font.family: root.contentFontFamily
                   font.pixelSize: Style.font.caption
 
@@ -569,7 +572,7 @@ Panel {
                 Text {
                   text: ">"
                   opacity: root.useTrackTime ? 1 : 0
-                  color: root.accentColor
+                  color: Color.accent
                   font.family: root.contentFontFamily
                   font.pixelSize: Style.font.caption
                 }
@@ -579,7 +582,7 @@ Panel {
                 id: trackTimeText
                 anchors.verticalCenter: parent.verticalCenter
                 text: "track: " + (root.trackTimeString || "--:--")
-                color: root.useTrackTime ? root.accentColor : Qt.darker(root.contentForeground, 1.4)
+                color: root.useTrackTime ? root.contentForeground : root.mutedText
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.caption
                 font.bold: root.useTrackTime
@@ -612,10 +615,8 @@ Panel {
                 anchors.left: parent.left
                 anchors.leftMargin: Style.space(16)
                 anchors.verticalCenter: parent.verticalCenter
-                text: parent.isRace ? parent.modelData.label.toUpperCase() : parent.modelData.label
-                color: parent.isNext
-                  ? root.accentColor
-                  : (parent.past ? Qt.darker(root.contentForeground, 1.8) : root.contentForeground)
+                text: parent.modelData.label
+                color: parent.past ? root.mutedText : root.contentForeground
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.bodySmall
                 font.bold: parent.isRace || parent.isNext
@@ -632,9 +633,7 @@ Panel {
                       ? root.trackSessionTimes[parent.index]
                       : Model.formatSessionTimeWithOffset(Model.parseUtcDate(parent.modelData.date), root.trackUtcOffset, root.use12Hour))
                   : Model.formatSessionTime(Model.parseUtcDate(parent.modelData.date), root.use12Hour)
-                color: parent.isNext
-                  ? root.accentColor
-                  : (parent.past ? Qt.darker(root.contentForeground, 1.8) : Qt.darker(root.contentForeground, 1.2))
+                color: parent.past ? root.mutedText : root.contentForeground
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.bodySmall
                 font.bold: parent.isNext
@@ -650,7 +649,7 @@ Panel {
             text: root.fetching
               ? "Fetching " + root.config.sourceLabel + "…"
               : "No upcoming races"
-            color: Qt.darker(root.contentForeground, 1.5)
+            color: root.mutedText
             font.family: root.contentFontFamily
             font.pixelSize: Style.font.bodySmall
             font.italic: true
@@ -675,7 +674,7 @@ Panel {
               width: parent.width
               elide: Text.ElideRight
               textFormat: Text.RichText
-              text: "<style>a{color:" + Qt.darker(root.contentForeground, 1.8) + ";text-decoration:underline}</style>" +
+              text: "<style>a{color:" + root.mutedText + ";text-decoration:underline}</style>" +
                     "Race data via " + root.config.sourceLabel + " · Weather by <a href='https://open-meteo.com/'>Open-Meteo</a>"
               color: Qt.darker(root.contentForeground, 1.8)
               font.family: root.contentFontFamily

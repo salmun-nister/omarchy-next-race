@@ -58,8 +58,26 @@ function nextRace(races, now) {
   return null
 }
 
-// The session after (or at) `now` for a race. Falls back to the race session
-// so there is always a sensible target.
+// Typical running window in ms for a session key; 0 when the series
+// doesn't estimate one.
+function sessionDurationMs(series, key) {
+  var minutes = series && series.sessionDurations ? series.sessionDurations[key] : 0
+  return (minutes || 0) * 60000
+}
+
+// True while a started session sits inside its estimated running window,
+// so an event in progress can read as live instead of "over".
+function sessionLive(series, session, now) {
+  if (!session) return false
+  var start = parseUtcDate(session.date)
+  if (!isFinite(start) || start > now) return false
+  var end = start + sessionDurationMs(series, session.key)
+  return end > start && now < end
+}
+
+// The session after (or at) `now` for a race; a started session stays the
+// target until its estimated end so the countdown holds on it while it runs.
+// Falls back to the race session so there is always a sensible target.
 function nextSession(series, race, now) {
   if (!race || !race.sessions || !race.sessions.length) return null
   var raceKey = series.raceSessionKey
@@ -68,6 +86,7 @@ function nextSession(series, race, now) {
     var session = race.sessions[i]
     if (session.key === raceKey) raceSession = session
     if (parseUtcDate(session.date) >= now) return session
+    if (sessionLive(series, session, now)) return session
   }
   return raceSession
 }

@@ -19,15 +19,3 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
-
----
-
-Track layout geometry in Circuits.js is derived from the
-bacinger/f1-circuits repository (https://github.com/bacinger/f1-circuits),
-MIT licensed. Formula 1, FORMULA ONE, FIA FORMULA ONE WORLD CHAMPIONSHIP,
-GRAND PRIX and related marks are trademarks of Formula One Licensing B.V.
-This plugin is unofficial and not affiliated with, endorsed or approved by
-Formula One, the FIA, or Formula One Licensing B.V. Race data is provided by
-the Jolpica F1 API (https://api.jolpi.ca/ergast/f1/). Weather and timezone
-data are provided by Open-Meteo (https://open-meteo.com/), used under the
-Creative Commons Attribution 4.0 International License (CC-BY 4.0).

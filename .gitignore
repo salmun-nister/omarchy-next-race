@@ -3,3 +3,4 @@ tools/
 node_modules/
 test/tmp/
 *.log
+.opencode/

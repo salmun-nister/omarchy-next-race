@@ -20,7 +20,7 @@ var SERIES = {
     shortName: "F1",
     sourceLabel: "Jolpica F1",
     sourceUrl: "https://api.jolpi.ca/ergast/f1/",
-    userAgent: "salmun-nister.next-race/1.0 (omarchy plugin)", // keep version in sync with manifest.json
+    userAgent: "salmun-nister.next-race/1.1 (omarchy plugin)", // keep version in sync with manifest.json
     seasonUrl: "https://api.jolpi.ca/ergast/f1/current/races.json?limit=30",
     nextSeasonUrl: function(year) {
       return "https://api.jolpi.ca/ergast/f1/" + year + "/1/races.json"
@@ -64,6 +64,18 @@ var SERIES = {
       { key: "Race", label: "Race" }
     ],
     raceSessionKey: "Race",
+    // Typical running windows in minutes. Jolpica publishes start times
+    // only; these estimates keep a started event targeted as live until it
+    // plausibly ends.
+    sessionDurations: {
+      FirstPractice: 60,
+      SecondPractice: 60,
+      ThirdPractice: 60,
+      SprintQualifying: 60,
+      Sprint: 45,
+      Qualifying: 90,
+      Race: 120
+    },
     sessionsFromRace: function(race) {
       var out = []
       var slots = this.sessionSlots
