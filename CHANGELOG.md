@@ -1,5 +1,14 @@
 # Changelog
 
+## 1.1.2 - 2026-09-08
+
+- Fixed panel close after Omarchy 4.0.3: the new `PluginBarApi` facade exposes
+  `centerHoverRevealSuppressed` as read-only, so the direct assignment inside
+  `setCenterHoverRevealSuppressed()` threw a `TypeError` and left the popup
+  stuck open until restart. The call now goes through the shared
+  `setCenterHoverRevealSuppressed()` method when available, with the writable
+  property as a fallback.
+
 ## 1.1.1 - 2026-08-22
 
 - Refreshed preview image.
