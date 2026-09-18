@@ -1,5 +1,9 @@
 # Changelog
 
+## 1.1.3 - 2025-09-08
+
+- Fixed panel positioning: the popup now anchors under the bar icon instead of centering on screen.
+
 ## 1.1.2 - 2026-09-08
 
 - Fixed panel close after Omarchy 4.0.3: the new `PluginBarApi` facade exposes
