@@ -48,6 +48,12 @@ Panel {
   readonly property string cachePath: Quickshell.env("HOME") + "/.local/state/omarchy/settings/next-race.json"
   readonly property string settingsPath: Quickshell.env("HOME") + "/.local/state/omarchy/settings/next-race-settings.json"
 
+  // Hard cap on every response the plugin pulls. Real payloads are ~14 KB
+  // (calendar) and under 1 KB (weather); curl aborts the transfer past this,
+  // so a hostile or broken endpoint cannot grow the shell's memory or the
+  // on-disk cache.
+  readonly property int maxResponseBytes: 65536
+
   property FileView cacheFile: FileView {
     path: root.cachePath
     watchChanges: true
@@ -219,6 +225,7 @@ Panel {
       ? root.config.nextSeasonUrl(root.fallbackYear)
       : root.config.seasonUrl
     fetchProc.command = ["curl", "-fsS", "--max-time", "10",
+      "--max-filesize", String(root.maxResponseBytes),
       "-A", root.config.userAgent, url]
     fetchProc.running = true
   }
@@ -245,7 +252,8 @@ Panel {
       onStreamFinished: {
         root.fetching = false
         var raw = String(text || "").trim()
-        if (!raw) {
+        // A body at the cap is a truncated one; never parse or cache it.
+        if (!raw || raw.length >= root.maxResponseBytes) {
           root.scheduleRetry()
           return
         }
@@ -300,7 +308,8 @@ Panel {
       + "&longitude=" + root.nextRace.long
       + "&current=weather_code,temperature_2m"
       + "&timezone=auto"
-    openMeteoProc.command = ["curl", "-fsS", "--max-time", "10", url]
+    openMeteoProc.command = ["curl", "-fsS", "--max-time", "10",
+      "--max-filesize", String(root.maxResponseBytes), url]
     openMeteoProc.running = true
   }
 
@@ -310,7 +319,7 @@ Panel {
       waitForEnd: true
       onStreamFinished: {
         var raw = String(text || "").trim()
-        if (!raw) return
+        if (!raw || raw.length >= root.maxResponseBytes) return
         var data
         try { data = JSON.parse(raw) } catch (e) { return }
         root.trackUtcOffset = data.utc_offset_seconds || 0
@@ -380,6 +389,7 @@ Panel {
                 text: root.nextRace
                   ? root.nextRace.season + " SEASON · ROUND " + root.nextRace.round
                   : ""
+                textFormat: Text.PlainText
                 color: root.mutedText
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.caption
@@ -392,6 +402,7 @@ Panel {
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
                 text: root.nextRace ? root.nextRace.name : ""
+                textFormat: Text.PlainText
                 color: root.contentForeground
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.heading
@@ -402,6 +413,7 @@ Panel {
                 width: parent.width
                 horizontalAlignment: Text.AlignHCenter
                 text: root.nextRace ? root.nextRace.locality + ", " + root.nextRace.country : ""
+                textFormat: Text.PlainText
                 color: root.mutedText
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.bodySmall
@@ -415,6 +427,7 @@ Panel {
                 text: root.nextSession && root.nextRace
                   ? root.nextSession.label + " · " + (root.sessionLive ? "live" : Model.countdownLong(root.targetEpoch, root.now.getTime()))
                   : ""
+                textFormat: Text.PlainText
                 color: root.contentForeground
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.bodySmall
@@ -504,6 +517,7 @@ Panel {
                   visible: !root.trackPoints || root.trackPoints.length < 3
                   anchors.centerIn: parent
                   text: "no track data"
+                  textFormat: Text.PlainText
                   color: Qt.darker(root.contentForeground, 1.8)
                   font.family: root.contentFontFamily
                   font.pixelSize: Style.font.caption
@@ -518,6 +532,7 @@ Panel {
               horizontalAlignment: Text.AlignHCenter
               text: (root.nextRace ? root.nextRace.circuitName : "") +
                     (root.trackWeatherIcon !== "" ? "  " + root.trackWeatherIcon : "")
+              textFormat: Text.PlainText
               color: root.contentForeground
               font.family: root.contentFontFamily
               font.pixelSize: Style.font.heading
@@ -533,6 +548,7 @@ Panel {
                 id: localTimeText
                 anchors.verticalCenter: parent.verticalCenter
                 text: "local: " + root.localTimeString
+                textFormat: Text.PlainText
                 color: !root.useTrackTime ? root.contentForeground : root.mutedText
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.caption
@@ -552,6 +568,7 @@ Panel {
 
                 Text {
                   text: "<"
+                  textFormat: Text.PlainText
                   opacity: !root.useTrackTime ? 1 : 0
                   color: Color.accent
                   font.family: root.contentFontFamily
@@ -560,6 +577,7 @@ Panel {
 
                 Text {
                   text: "\uf017"
+                  textFormat: Text.PlainText
                   color: Color.accent
                   font.family: root.contentFontFamily
                   font.pixelSize: Style.font.caption
@@ -573,6 +591,7 @@ Panel {
 
                 Text {
                   text: ">"
+                  textFormat: Text.PlainText
                   opacity: root.useTrackTime ? 1 : 0
                   color: Color.accent
                   font.family: root.contentFontFamily
@@ -584,6 +603,7 @@ Panel {
                 id: trackTimeText
                 anchors.verticalCenter: parent.verticalCenter
                 text: "track: " + (root.trackTimeString || "--:--")
+                textFormat: Text.PlainText
                 color: root.useTrackTime ? root.contentForeground : root.mutedText
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.caption
@@ -618,6 +638,7 @@ Panel {
                 anchors.leftMargin: Style.space(16)
                 anchors.verticalCenter: parent.verticalCenter
                 text: parent.modelData.label
+                textFormat: Text.PlainText
                 color: parent.past ? root.mutedText : root.contentForeground
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.bodySmall
@@ -635,6 +656,7 @@ Panel {
                       ? root.trackSessionTimes[parent.index]
                       : Model.formatSessionTimeWithOffset(Model.parseUtcDate(parent.modelData.date), root.trackUtcOffset, root.use12Hour))
                   : Model.formatSessionTime(Model.parseUtcDate(parent.modelData.date), root.use12Hour)
+                textFormat: Text.PlainText
                 color: parent.past ? root.mutedText : root.contentForeground
                 font.family: root.contentFontFamily
                 font.pixelSize: Style.font.bodySmall
@@ -651,6 +673,7 @@ Panel {
             text: root.fetching
               ? "Fetching " + root.config.sourceLabel + "…"
               : "No upcoming races"
+            textFormat: Text.PlainText
             color: root.mutedText
             font.family: root.contentFontFamily
             font.pixelSize: Style.font.bodySmall
@@ -675,13 +698,11 @@ Panel {
             Text {
               width: parent.width
               elide: Text.ElideRight
-              textFormat: Text.RichText
-              text: "<style>a{color:" + root.mutedText + ";text-decoration:underline}</style>" +
-                    "Race data via " + root.config.sourceLabel + " · Weather by <a href='https://open-meteo.com/'>Open-Meteo</a>"
+              textFormat: Text.PlainText
+              text: "Race data via " + root.config.sourceLabel + " · Weather by Open-Meteo"
               color: Qt.darker(root.contentForeground, 1.8)
               font.family: root.contentFontFamily
               font.pixelSize: Style.font.caption
-              onLinkActivated: function(url) { Qt.openUrlExternally(url) }
             }
           }
         }
