@@ -212,6 +212,10 @@ Panel {
   // ---- Fetching. One curl at a time, on a 10s leash; failures back off
   //      (a few seconds each) up to a handful of attempts, and any cached
   //      response keeps the panel alive meanwhile.
+  // Fetches once at load; after that the daily timer below plus the panel's
+  // own open/refresh paths drive it.
+  Component.onCompleted: refresh()
+
   function refresh() {
     if (fetchProc.running) return
     root.fetchRetries = 0
@@ -283,19 +287,14 @@ Panel {
     }
   }
 
-  // Keep the calendar fresh while the shell runs; the panel also refreshes
-  // every time it opens.
+  // Keep the calendar fresh while the shell runs. Daily is plenty for a
+  // calendar that changes a few times per season, and it costs one request a
+  // day. The panel also refreshes every time it opens or is middle-clicked.
   Timer {
-    interval: 30 * 60 * 1000
+    interval: 24 * 60 * 60 * 1000
     running: true
     repeat: true
     onTriggered: root.refresh()
-  }
-
-  Timer {
-    interval: 1500
-    running: true
-    onTriggered: { cacheFile.reload(); root.refresh() }
   }
 
   // ---- Open-Meteo: timezone + weather for the next race's circuit.
