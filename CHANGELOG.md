@@ -1,5 +1,19 @@
 # Changelog
 
+## 1.1.4 - 2026-09-25
+
+- Race, circuit, and location strings from the calendar API now always render
+  as plain text, so a crafted response can no longer be interpreted as rich
+  text by the shell. The footer credit is plain text too, which drops the
+  Open-Meteo link (both projects are credited in the README).
+- Calendar and weather responses are capped at 64 KB. Past that, curl aborts
+  the transfer and the panel keeps showing the last cached response instead of
+  growing the shell's memory or the cache file.
+- The background refresh is now once a day instead of every 30 minutes, with
+  one fetch when the panel loads. A 1.5-second poll timer that only ever fired
+  once, at startup, is gone. Opening the panel or middle-clicking still
+  refreshes immediately.
+
 ## 1.1.3 - 2025-09-08
 
 - Fixed panel positioning: the popup now anchors under the bar icon instead of centering on screen.
