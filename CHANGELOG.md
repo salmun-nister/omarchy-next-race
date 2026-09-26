@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.6 - 2026-09-25
+
+- The test suite is no longer shipped inside the plugin folder. It stays in the
+  local checkout, gitignored, so `node --test` still works while an installed
+  plugin carries only what the shell actually loads.
+
 ## 1.1.5 - 2026-09-25
 
 - The calendar and settings state files are now read through a size- and
