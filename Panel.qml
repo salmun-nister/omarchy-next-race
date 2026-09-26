@@ -239,6 +239,11 @@ Panel {
     fetchProc.command = ["curl", "-q", "-fsS", "--max-time", "10",
       "--max-filesize", String(root.maxResponseBytes),
       "-A", root.config.userAgent, url]
+    // The gate below needs both flags to describe this run alone. Kept from the
+    // previous run, a stale exit code of 0 would let a request that is still
+    // running, or has just failed, through the success check.
+    fetchProc.exitCode = -1
+    fetchProc.bodyDone = false
     fetchProc.running = true
   }
 
@@ -276,8 +281,10 @@ Panel {
       }
     }
 
-    // Whichever signal lands last completes the response; neither one alone is
-    // enough, and each flag flips exactly once, so this runs exactly once.
+    // Whichever signal lands last completes the response. Both flags are reset
+    // per run before the process starts, so the first call of a run sees
+    // exitCode -1 and returns, and only the second, carrying the real exit
+    // code, does any work.
     function handleResponse() {
       if (!fetchProc.bodyDone || fetchProc.exitCode < 0) return
       root.fetching = false
@@ -336,6 +343,8 @@ Panel {
       + "&timezone=auto"
     openMeteoProc.command = ["curl", "-q", "-fsS", "--max-time", "10",
       "--max-filesize", String(root.maxResponseBytes), url]
+    openMeteoProc.exitCode = -1
+    openMeteoProc.bodyDone = false
     openMeteoProc.running = true
   }
 

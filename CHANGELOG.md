@@ -1,5 +1,15 @@
 # Changelog
 
+## 1.1.7 - 2026-09-25
+
+- Fixed a fetch that could save the response of a request that never finished.
+  The end of the output is reported before the process exits, and the two
+  flags that decide whether a response counts were carried over from the
+  previous request, so from the second request of a shell session onward a
+  timed-out request that had already delivered a body was accepted and written
+  to the calendar file. The flags are now reset for every request, which also
+  stops a failed request from suppressing the next successful one.
+
 ## 1.1.6 - 2026-09-25
 
 - The test suite is no longer shipped inside the plugin folder. It stays in the
