@@ -1,6 +1,6 @@
 AGENTS.md
 tools/
 node_modules/
-test/tmp/
+test/
 *.log
 .opencode/
