@@ -54,13 +54,21 @@ Panel {
   // on-disk cache.
   readonly property int maxResponseBytes: 65536
 
+  // The settings file holds a single boolean, so anything bigger is not ours.
+  readonly property int maxSettingsBytes: 4096
+
   property FileView cacheFile: FileView {
     path: root.cachePath
     watchChanges: true
     atomicWrites: true
     printErrors: false
     onFileChanged: reload()
-    onLoaded: root.ingest(Model.parseJson(text()))
+    // An over-large, malformed or non-object cache is ignored rather than
+    // replacing good in-memory races with it.
+    onLoaded: {
+      var data = Model.parseJsonBounded(text(), root.maxResponseBytes)
+      if (data) root.ingest(data)
+    }
     onLoadFailed: root.races = []
   }
 
@@ -71,8 +79,8 @@ Panel {
     printErrors: false
     onFileChanged: reload()
     onLoaded: {
-      var data = Model.parseJson(text())
-      if (data && "useTrackTime" in data) root.useTrackTime = data.useTrackTime
+      var data = Model.parseJsonBounded(text(), root.maxSettingsBytes)
+      if (data && "useTrackTime" in data) root.useTrackTime = data.useTrackTime === true
     }
     onLoadFailed: {}
   }
@@ -228,7 +236,7 @@ Panel {
     var url = root.usingFallbackSeason
       ? root.config.nextSeasonUrl(root.fallbackYear)
       : root.config.seasonUrl
-    fetchProc.command = ["curl", "-fsS", "--max-time", "10",
+    fetchProc.command = ["curl", "-q", "-fsS", "--max-time", "10",
       "--max-filesize", String(root.maxResponseBytes),
       "-A", root.config.userAgent, url]
     fetchProc.running = true
@@ -251,25 +259,44 @@ Panel {
 
   Process {
     id: fetchProc
+    property int exitCode: -1
+    property bool bodyDone: false
+
+    onExited: (code) => {
+      fetchProc.exitCode = code
+      fetchProc.handleResponse()
+    }
+
     stdout: StdioCollector {
+      id: calendarBody
       waitForEnd: true
       onStreamFinished: {
-        root.fetching = false
-        var raw = String(text || "").trim()
-        // A body at the cap is a truncated one; never parse or cache it.
-        if (!raw || raw.length >= root.maxResponseBytes) {
-          root.scheduleRetry()
-          return
-        }
-        var parsed = Model.parseJson(raw)
-        if (!parsed || !root.config.raceList(parsed)) {
-          root.scheduleRetry()
-          return
-        }
-        root.fetchRetries = 0
-        root.ingest(parsed)
-        cacheFile.setText(JSON.stringify(parsed))
+        fetchProc.bodyDone = true
+        fetchProc.handleResponse()
       }
+    }
+
+    // Whichever signal lands last completes the response; neither one alone is
+    // enough, and each flag flips exactly once, so this runs exactly once.
+    function handleResponse() {
+      if (!fetchProc.bodyDone || fetchProc.exitCode < 0) return
+      root.fetching = false
+      var raw = String(calendarBody.text || "").trim()
+      // A non-zero exit is a failure, and a body at the cap is a truncated one
+      // (curl aborts the transfer past it). Neither is ever parsed or cached.
+      // The length here is characters; curl's --max-filesize is the byte cap.
+      if (fetchProc.exitCode !== 0 || !raw || raw.length >= root.maxResponseBytes) {
+        root.scheduleRetry()
+        return
+      }
+      var parsed = Model.parseJsonBounded(raw, root.maxResponseBytes)
+      if (!parsed || !root.config.raceList(parsed)) {
+        root.scheduleRetry()
+        return
+      }
+      root.fetchRetries = 0
+      root.ingest(parsed)
+      cacheFile.setText(JSON.stringify(parsed))
     }
   }
 
@@ -307,26 +334,41 @@ Panel {
       + "&longitude=" + root.nextRace.long
       + "&current=weather_code,temperature_2m"
       + "&timezone=auto"
-    openMeteoProc.command = ["curl", "-fsS", "--max-time", "10",
+    openMeteoProc.command = ["curl", "-q", "-fsS", "--max-time", "10",
       "--max-filesize", String(root.maxResponseBytes), url]
     openMeteoProc.running = true
   }
 
   Process {
     id: openMeteoProc
+    property int exitCode: -1
+    property bool bodyDone: false
+
+    onExited: (code) => {
+      openMeteoProc.exitCode = code
+      openMeteoProc.handleResponse()
+    }
+
     stdout: StdioCollector {
+      id: weatherBody
       waitForEnd: true
       onStreamFinished: {
-        var raw = String(text || "").trim()
-        if (!raw || raw.length >= root.maxResponseBytes) return
-        var data
-        try { data = JSON.parse(raw) } catch (e) { return }
-        root.trackUtcOffset = data.utc_offset_seconds || 0
-        root.trackTimezone = data.timezone || ""
-        if (data.current && data.current.weather_code != null)
-          root.trackWeatherIcon = Model.weatherIcon(data.current.weather_code)
-        convertSessionTimes()
+        openMeteoProc.bodyDone = true
+        openMeteoProc.handleResponse()
       }
+    }
+
+    function handleResponse() {
+      if (!openMeteoProc.bodyDone || openMeteoProc.exitCode < 0) return
+      var raw = String(weatherBody.text || "").trim()
+      if (openMeteoProc.exitCode !== 0 || !raw || raw.length >= root.maxResponseBytes) return
+      var data = Model.parseJsonBounded(raw, root.maxResponseBytes)
+      if (!data) return
+      root.trackUtcOffset = data.utc_offset_seconds || 0
+      root.trackTimezone = data.timezone || ""
+      if (data.current && data.current.weather_code != null)
+        root.trackWeatherIcon = Model.weatherIcon(data.current.weather_code)
+      convertSessionTimes()
     }
   }
 

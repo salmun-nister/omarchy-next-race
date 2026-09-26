@@ -1,5 +1,16 @@
 # Changelog
 
+## 1.1.5 - 2026-09-25
+
+- The calendar and settings state files are now read through a size- and
+  shape-checked parser. Content over the cap, malformed JSON, and JSON that is
+  not an object are ignored instead of being loaded, and a bad cache file no
+  longer replaces what the panel is already showing.
+- curl is now run with `-q`, so a `~/.curlrc` can no longer add options to the
+  plugin's requests.
+- Responses are parsed and cached only when curl exits successfully. A failed
+  request is retried as before and never overwrites the cache.
+
 ## 1.1.4 - 2026-09-25
 
 - Race, circuit, and location strings from the calendar API now always render

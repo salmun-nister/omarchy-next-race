@@ -2,13 +2,23 @@
 // series config it is operating on, so adding a series only means adding a
 // config to Series.js — nothing else needs to know its shape.
 
-function parseJson(text) {
+// Bounded, shape-checked JSON parse for every untrusted string the plugin
+// reads: a network body or a state file on disk. Returns the object, or null
+// when the text is empty, larger than maxBytes, not JSON, or not a plain JSON
+// object -- an array or a scalar is never a valid payload. A missing or
+// nonsensical cap fails closed, so a caller mistake cannot widen the bound.
+function parseJsonBounded(text, maxBytes) {
   if (!text) return null
+  const body = String(text)
+  if (!(body.length <= maxBytes)) return null
+  let value = null
   try {
-    return JSON.parse(String(text))
+    value = JSON.parse(body)
   } catch (e) {
     return null
   }
+  if (!value || typeof value !== "object" || Array.isArray(value)) return null
+  return value
 }
 
 // "YYYY-MM-DD" or "YYYY-MM-DDTHH:MM:SSZ" -> a UTC ms epoch. NaN when garbage.
