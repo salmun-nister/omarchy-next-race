@@ -45,7 +45,10 @@ omarchy plugin update salmun-nister.next-race
 omarchy plugin remove salmun-nister.next-race
 ```
 
-Removal deletes only the plugin checkout and removes the widget from the Omarchy bar configuration. It does not remove any other data.
+Removal deletes only the plugin checkout and removes the widget from the Omarchy bar configuration. It does not remove any other data, so two files are left in `~/.local/state/omarchy/settings/`:
+
+- `next-race.json` — the offline race calendar cache, used when the network is unreachable.
+- `next-race-settings.json` — no longer read or written since 1.1.8, and safe to delete.
 
 ## Future Considerations
 

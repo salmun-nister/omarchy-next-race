@@ -50,48 +50,48 @@ Panel {
   // ---- Data. The last good calendar response is cached locally so the
   //      plugin degrades to showing stale-but-true races while offline.
   readonly property string cachePath: Quickshell.env("HOME") + "/.local/state/omarchy/settings/next-race.json"
-  readonly property string settingsPath: Quickshell.env("HOME") + "/.local/state/omarchy/settings/next-race-settings.json"
 
   // Hard cap on every response the plugin pulls. Real payloads are ~14 KB
   // (calendar) and under 1 KB (weather); curl aborts the transfer past this,
   // so a hostile or broken endpoint cannot grow the shell's memory or the
-  // on-disk cache.
+  // on-disk cache. The cache read below is bound by the same number.
   readonly property int maxResponseBytes: 65536
 
-  // The settings file holds a single boolean, so anything bigger is not ours.
-  readonly property int maxSettingsBytes: 4096
+  // Cache read and write both go through Processes rather than FileView.
+  // The path is predictable, so FileView would pull an arbitrarily large
+  // file — or block forever opening a FIFO — into the persistent shell
+  // before any cap could be applied. `head -c` stops at the cap and the
+  // timeout bounds a pipe that never closes; this is the same bound the
+  // shell uses when it copies notification images. Nothing but this plugin
+  // writes the cache, so one read at startup is enough.
 
-  property FileView cacheFile: FileView {
-    path: root.cachePath
-    watchChanges: true
-    atomicWrites: true
-    printErrors: false
-    onFileChanged: reload()
-    // An over-large, malformed or non-object cache is ignored rather than
-    // replacing good in-memory races with it.
-    onLoaded: {
-      var data = Model.parseJsonBounded(text(), root.maxResponseBytes)
-      if (data) root.ingest(data)
+  Process {
+    id: cacheRead
+    command: ["timeout", "5", "head", "-c", String(root.maxResponseBytes), "--", root.cachePath]
+    running: true
+    stdout: StdioCollector {
+      waitForEnd: true
+      onStreamFinished: {
+        // An over-large, malformed or non-object cache is ignored rather
+        // than replacing good in-memory races with it.
+        var data = Model.parseJsonBounded(text, root.maxResponseBytes)
+        if (data) root.ingest(data)
+      }
     }
-    onLoadFailed: root.races = []
   }
 
-  property FileView settingsFile: FileView {
-    path: root.settingsPath
-    watchChanges: true
-    atomicWrites: true
-    printErrors: false
-    onFileChanged: reload()
-    onLoaded: {
-      var data = Model.parseJsonBounded(text(), root.maxSettingsBytes)
-      if (data && "useTrackTime" in data) root.useTrackTime = data.useTrackTime === true
-    }
-    onLoadFailed: {}
+  // Atomic save: write a temp file, then rename, so a torn write is never
+  // the file the next shell start reads. The body arrives as a positional
+  // parameter to printf, so it is never re-tokenized by the shell.
+  readonly property string saveCacheScript:
+    'mkdir -p -- "${2%/*}" && printf %s "$1" > "$2.tmp" && mv -f -- "$2.tmp" "$2"'
+
+  function saveCache(body) {
+    cacheSave.command = ["bash", "-c", root.saveCacheScript, "next-race-cache", body, root.cachePath]
+    cacheSave.running = true
   }
 
-  function saveSettings() {
-    settingsFile.setText(JSON.stringify({ useTrackTime: root.useTrackTime }))
-  }
+  Process { id: cacheSave }
 
   property var races: []
   property int fallbackYear: 0
@@ -135,9 +135,27 @@ Panel {
     return { minX: minX, maxX: maxX, minY: minY, maxY: maxY, w: w, h: h, aspect: h / w }
   })()
 
-  // Time display mode: false = local time, true = track time.
-  property bool useTrackTime: false
-  onUseTrackTimeChanged: saveSettings()
+  // Time display mode: false = local time, true = track time. An ordinary
+  // widget option, so it lives on this entry's shell.json settings with
+  // `series` rather than in a second file, and the panel just reads it back.
+  readonly property bool useTrackTime: root.setting("useTrackTime", false) === true
+
+  // Applied locally first so the panel redraws on the click itself; the
+  // shell.json write comes back through the bar as the same value. With no
+  // writable entry (the widget is not in the layout) it stays a session-only
+  // preference rather than doing nothing.
+  function setTrackTime(value) {
+    var next = !!value
+    if (next === root.useTrackTime) return
+    var entry = { id: root.moduleName }
+    for (var key in root.settings) if (key !== "id") entry[key] = root.settings[key]
+    entry.useTrackTime = next
+
+    root.settings = entry
+    if (root.hostWidget && "settings" in root.hostWidget) root.hostWidget.settings = entry
+    if (root.bar && root.bar.shell && typeof root.bar.shell.updateEntryInline === "function")
+      root.bar.shell.updateEntryInline(root.moduleName, entry)
+  }
 
   // Locale-aware time format detection.
   readonly property bool use12Hour: {
@@ -305,7 +323,7 @@ Panel {
       }
       root.fetchRetries = 0
       root.ingest(parsed)
-      cacheFile.setText(JSON.stringify(parsed))
+      root.saveCache(JSON.stringify(parsed))
     }
   }
 
@@ -617,7 +635,7 @@ Panel {
                 MouseArea {
                   anchors.fill: parent
                   cursorShape: Qt.PointingHandCursor
-                  onClicked: root.useTrackTime = false
+                  onClicked: root.setTrackTime(false)
                 }
               }
 
@@ -644,7 +662,7 @@ Panel {
                   MouseArea {
                     anchors.fill: parent
                     cursorShape: Qt.PointingHandCursor
-                    onClicked: root.useTrackTime = !root.useTrackTime
+                    onClicked: root.setTrackTime(!root.useTrackTime)
                   }
                 }
 
@@ -672,7 +690,7 @@ Panel {
                 MouseArea {
                   anchors.fill: parent
                   cursorShape: Qt.PointingHandCursor
-                  onClicked: root.useTrackTime = true
+                  onClicked: root.setTrackTime(true)
                 }
               }
             }

@@ -15,6 +15,15 @@
   progress reads the same as it did before 1.1.0.
 - As in 1.1.7, the bar stays blank while the next season's calendar has not
   been published yet.
+- The cached calendar is now read with a size and time limit instead of being
+  loaded whole, so a cache file that has been replaced with something huge, or
+  with a pipe, can no longer stall the shell.
+- The track-time toggle is now a normal widget option, saved in the plugin's
+  entry in `shell.json` alongside the series. A track-time preference saved by
+  an earlier version is not carried over; toggle it once and it persists from
+  then on. The file that held it,
+  `~/.local/state/omarchy/settings/next-race-settings.json`, is no longer read
+  or written and can be deleted.
 
 ## 1.1.7 - 2026-09-25
 
