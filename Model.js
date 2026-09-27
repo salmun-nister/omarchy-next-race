@@ -33,7 +33,6 @@ function parseUtcDate(text) {
 function parseRaces(series, raw) {
   var races = series.raceList(raw)
   if (!races || !races.length) return []
-  var now = Date.now()
   var out = []
   for (var i = 0; i < races.length; i++) {
     var race = races[i]
@@ -52,18 +51,22 @@ function parseRaces(series, raw) {
       long: series.circuitLong(race),
       dateISO: dateISO,
       epoch: epoch,
-      stale: epoch < now,
       sessions: series.sessionsFromRace(race)
     })
   }
   return out
 }
 
-// First race whose race moment is now or later; null when everything is over.
-function nextRace(races, now) {
+// The race to watch: the next one to start, or one that has started and is
+// still inside its estimated running window, so the pill keeps reading
+// "live now" for the event instead of jumping to the following round. Null
+// once every race in the list is over.
+function nextRace(series, races, now) {
   if (!races) return null
   for (var i = 0; i < races.length; i++) {
-    if (!races[i].stale) return races[i]
+    var race = races[i]
+    if (race.epoch >= now) return race
+    if (now < race.epoch + sessionDurationMs(series, series.raceSessionKey)) return race
   }
   return null
 }

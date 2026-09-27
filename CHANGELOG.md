@@ -1,5 +1,21 @@
 # Changelog
 
+## 1.1.8 - 2026-09-26
+
+- Fixed a bar that could sit on a stale race for hours. Which race the bar
+  counts down to was decided when the calendar was fetched, and a race was
+  called finished from that one moment on, so a race that had already started
+  kept the bar on "now" until the next request. The choice is now made against
+  the clock every 30 seconds, and a race that has started stays on the bar for
+  its estimated running time before the bar moves to the next one.
+- The bar now moves on by itself at the end of a season instead of waiting for
+  the calendar to be refetched, and the request for the next season goes out
+  after the current one has finished rather than alongside it.
+- The bar text during a session is back to just the countdown, so a race in
+  progress reads the same as it did before 1.1.0.
+- As in 1.1.7, the bar stays blank while the next season's calendar has not
+  been published yet.
+
 ## 1.1.7 - 2026-09-25
 
 - Fixed a fetch that could save the response of a request that never finished.

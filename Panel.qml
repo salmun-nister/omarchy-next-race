@@ -33,14 +33,18 @@ Panel {
   readonly property string seriesId: String(root.setting("series", "f1"))
   readonly property var config: Series.configFor(seriesId)
 
-  // ---- Clock. Ticks so the countdown and "now" markers track wall time.
+  // ---- Clock. Ticks so the countdown and "now" markers track wall time, and
+  // so the pill rolls over by itself when a race starts or a season ends.
   property var now: new Date()
 
   Timer {
     interval: 30 * 1000
     running: true
     repeat: true
-    onTriggered: root.now = new Date()
+    onTriggered: {
+      root.now = new Date()
+      if (!root.nextRace) root.hopToNextSeason()
+    }
   }
 
   // ---- Data. The last good calendar response is cached locally so the
@@ -99,7 +103,7 @@ Panel {
   readonly property bool usingFallbackSeason: root.fallbackYear > 0
 
   // ---- Derived.
-  readonly property var nextRace: Model.nextRace(root.races, root.now)
+  readonly property var nextRace: Model.nextRace(root.config, root.races, root.now)
   readonly property var nextSession: Model.nextSession(root.config, root.nextRace, root.now)
   readonly property real targetEpoch: root.nextSession ? Model.parseUtcDate(root.nextSession.date) : NaN
   // The targeted session has started and sits inside its estimated running
@@ -172,10 +176,8 @@ Panel {
   }
 
   // The pill. Hidden until there is something to say; a countdown to the
-  // next session once there is.
-  readonly property string label: !root.nextRace ? "" : root.sessionLive
-    ? "\uf11e " + root.config.shortName + " · live now"
-    : "\uf11e " + root.config.shortName + " " + Model.countdownText(root.targetEpoch, root.now.getTime())
+  // next session once there is. A session in progress counts down to "now".
+  readonly property string label: !root.nextRace ? "" : "\uf11e " + root.config.shortName + " " + Model.countdownText(root.targetEpoch, root.now.getTime())
 
   // ---- Open/close, mirroring the clock panel's contract.
   function open() {
@@ -312,13 +314,20 @@ Panel {
   function ingest(parsed) {
     root.races = Model.parseRaces(root.config, parsed)
     if (!root.races.length) return
-    if (!Model.nextRace(root.races, root.now)) {
-      var year = Model.nextSeasonYear(root.races, root.now)
-      if (year !== null && year !== root.fallbackYear) {
-        root.fallbackYear = year
-        Qt.callLater(root.startFetch)
-      }
-    }
+    if (!Model.nextRace(root.config, root.races, root.now)) root.hopToNextSeason()
+  }
+
+  // Nothing left in the loaded calendar: fetch the next season's opener so
+  // the pill keeps a real countdown instead of going blank. The fallback
+  // year sticks, so this runs once per off-season rather than every tick.
+  // The fetch goes out on the retry timer, not callLater: when a hop follows
+  // a fetch, that process is still marked running here and startFetch would
+  // bail out on it, leaving the pill blank with the year already spent.
+  function hopToNextSeason() {
+    var year = Model.nextSeasonYear(root.races, root.now)
+    if (year === null || year === root.fallbackYear) return
+    root.fallbackYear = year
+    retryTimer.restart()
   }
 
   // Keep the calendar fresh while the shell runs. Daily is plenty for a
