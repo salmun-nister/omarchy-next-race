@@ -2,6 +2,7 @@ import QtQuick
 import Quickshell
 import Quickshell.Io
 import qs.Commons
+import qs.Commons as Commons
 import qs.Ui
 import "Series.js" as Series
 import "Model.js" as Model
@@ -110,10 +111,10 @@ Panel {
   // window, so pill and hero say so instead of counting the next event.
   readonly property bool sessionLive: Model.sessionLive(root.config, root.nextSession, root.now.getTime())
 
-  readonly property color contentForeground: bar ? bar.foreground : Color.foreground
+  readonly property color contentForeground: bar ? bar.foreground : Commons.Color.foreground
   readonly property string contentFontFamily: bar ? bar.fontFamily : Style.font.family
   // Theme-authored secondary tone; emphasis comes from weight, not shading.
-  readonly property color mutedText: Color.muted
+  readonly property color mutedText: Commons.Color.muted
 
   readonly property var trackPoints: root.nextRace ? Circuits.circuitPoints(root.nextRace.circuitId) : undefined
   readonly property var trackPath: Model.normalizeTrack(root.trackPoints)
@@ -559,7 +560,7 @@ Panel {
 
                   // Start/finish: the ring's first point, marked as a filled
                   // dot so the diagram reads which way the lap goes.
-                  ctx.fillStyle = String(Color.accent)
+                  ctx.fillStyle = String(Commons.Color.accent)
                   ctx.beginPath()
                   ctx.arc(px(pts[0]), py(pts[0]), 3.5, 0, Math.PI * 2)
                   ctx.fill()
@@ -578,7 +579,7 @@ Panel {
                     var ny = tx
                     var cx = px(pts[0]) + tx * 7
                     var cy = py(pts[0]) + ty * 7
-                    ctx.strokeStyle = String(Color.accent)
+                    ctx.strokeStyle = String(Commons.Color.accent)
                     ctx.lineWidth = 2
                     ctx.lineCap = "round"
                     ctx.beginPath()
@@ -647,7 +648,7 @@ Panel {
                   text: "<"
                   textFormat: Text.PlainText
                   opacity: !root.useTrackTime ? 1 : 0
-                  color: Color.accent
+                  color: Commons.Color.accent
                   font.family: root.contentFontFamily
                   font.pixelSize: Style.font.caption
                 }
@@ -655,7 +656,7 @@ Panel {
                 Text {
                   text: "\uf017"
                   textFormat: Text.PlainText
-                  color: Color.accent
+                  color: Commons.Color.accent
                   font.family: root.contentFontFamily
                   font.pixelSize: Style.font.caption
 
@@ -670,7 +671,7 @@ Panel {
                   text: ">"
                   textFormat: Text.PlainText
                   opacity: root.useTrackTime ? 1 : 0
-                  color: Color.accent
+                  color: Commons.Color.accent
                   font.family: root.contentFontFamily
                   font.pixelSize: Style.font.caption
                 }

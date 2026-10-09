@@ -20,7 +20,7 @@ var SERIES = {
     shortName: "F1",
     sourceLabel: "Jolpica F1",
     sourceUrl: "https://api.jolpi.ca/ergast/f1/",
-    userAgent: "salmun-nister.next-race/1.1.8 (omarchy plugin)", // keep version in sync with manifest.json
+    userAgent: "salmun-nister.next-race/1.1.9 (omarchy plugin)", // keep version in sync with manifest.json
     seasonUrl: "https://api.jolpi.ca/ergast/f1/current/races.json?limit=30",
     nextSeasonUrl: function(year) {
       return "https://api.jolpi.ca/ergast/f1/" + year + "/1/races.json"

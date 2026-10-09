@@ -1,5 +1,10 @@
 # Changelog
 
+## 1.1.9 - 2026-10-09
+
+- Fixed the panel losing its colours on Qt 6.12: the theme palette is now read
+  as `Commons.Color`, so Qt's own `Color` singleton no longer shadows it.
+
 ## 1.1.8 - 2026-09-26
 
 - Fixed a bar that could sit on a stale race for hours. Which race the bar
